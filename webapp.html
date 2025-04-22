@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Snake Evolution</title>
+  <style>
+    html, body {
+      margin: 0;
+      background: #000;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh; /* Ensure full viewport height */
+      font-family: monospace;
+      color: white;
+    }
+    canvas {
+      display: block;
+      background: #111;
+    }
+    .menu {
+      margin-top: 20px;
+    }
+    .menu a {
+      color: rgb(255, 255, 255);
+      text-decoration: none;
+      text-decoration: underline;
+      margin: 0 15px;
+      font-size: 1.2em;
+    }
+    .menu a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div class="menu">
+  <a href="index.html">Dallin Gibson Page</a>
+  <a href="from_scratch.html">From Scratch Page</a>
+
+</div>
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+// --- Constants ---
+const NUM_FOOD_ITEMS = 5; // How many food items on screen at once
+
+// Grid and screen size
+let gridSize = 20;
+let tileCountX, tileCountY;
+function resizeCanvas() {
+  canvas.width = window.innerWidth * 0.8; // Adjust canvas width
+  canvas.height = window.innerHeight * 0.7; // Adjust canvas height
+  tileCountX = Math.floor(canvas.width / gridSize);
+  tileCountY = Math.floor(canvas.height / gridSize);
+  // Re-initialize foods if screen size changes significantly (optional)
+  // initializeFoods();
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
+
+// Snake 1 (Player 1)
+let snake1 = [{ x: Math.floor(tileCountX / 4), y: Math.floor(tileCountY / 2) }]; // Start position adjusted
+let direction1 = { x: 0, y: 0 }; // Initially no movement
+let grow1 = false;
+let score1 = 0;
+let dead1 = false;
+
+// Snake 2 (Player 2)
+let snake2 = [{ x: Math.floor(3 * tileCountX / 4), y: Math.floor(tileCountY / 2) }]; // Start position adjusted
+let direction2 = { x: 0, y: 0 }; // Initially no movement
+let grow2 = false;
+let score2 = 0;
+let dead2 = false;
+
+// Food - Now an array
+let foods = []; // Array to hold multiple food objects {x, y}
+
+// Game states
+let evolutionLevel = 0;
+let speed = 100;
+let paused = false;
+let gameStarted = false;
+
+// --- Food Functions ---
+function placeNewFood() {
+  let newFoodPos;
+  let validPosition = false;
+  // Keep trying until a valid position is found
+  while (!validPosition) {
+      newFoodPos = {
+          x: Math.floor(Math.random() * tileCountX),
+          y: Math.floor(Math.random() * tileCountY)
+      };
+
+      // Check against Snake 1
+      let onSnake1 = snake1.some(segment => segment.x === newFoodPos.x && segment.y === newFoodPos.y);
+      // Check against Snake 2
+      let onSnake2 = snake2.some(segment => segment.x === newFoodPos.x && segment.y === newFoodPos.y);
+      // Check against existing food
+      let onExistingFood = foods.some(f => f.x === newFoodPos.x && f.y === newFoodPos.y);
+
+      if (!onSnake1 && !onSnake2 && !onExistingFood) {
+          validPosition = true;
+      }
+  }
+  foods.push(newFoodPos); // Add the valid food item to the array
+}
+
+function initializeFoods() {
+    foods = []; // Clear existing food
+    for (let i = 0; i < NUM_FOOD_ITEMS; i++) {
+        placeNewFood();
+    }
+}
+
+
+// Key controls
+document.addEventListener("keydown", (e) => {
+  // Player 1 controls (Arrow Keys)
+  if (e.key === "ArrowUp" && direction1.y === 0) direction1 = { x: 0, y: -1 };
+  if (e.key === "ArrowDown" && direction1.y === 0) direction1 = { x: 0, y: 1 };
+  if (e.key === "ArrowLeft" && direction1.x === 0) direction1 = { x: -1, y: 0 };
+  if (e.key === "ArrowRight" && direction1.x === 0) direction1 = { x: 1, y: 0 };
+
+  // Player 2 controls (WASD Keys)
+  if (e.key === "w" && direction2.y === 0) direction2 = { x: 0, y: -1 };
+  if (e.key === "s" && direction2.y === 0) direction2 = { x: 0, y: 1 };
+  if (e.key === "a" && direction2.x === 0) direction2 = { x: -1, y: 0 };
+  if (e.key === "d" && direction2.x === 0) direction2 = { x: 1, y: 0 };
+
+  if (e.key.toLowerCase() === "p") paused = !paused;
+  if (!gameStarted && e.key === "Enter") {
+    gameStarted = true;
+    // Reset snakes and scores for a new game (basic reset)
+    snake1 = [{ x: Math.floor(tileCountX / 4), y: Math.floor(tileCountY / 2) }];
+    direction1 = { x: 0, y: 0 };
+    score1 = 0; dead1 = false;
+    snake2 = [{ x: Math.floor(3 * tileCountX / 4), y: Math.floor(tileCountY / 2) }];
+    direction2 = { x: 0, y: 0 };
+    score2 = 0; dead2 = false;
+    paused = false;
+    initializeFoods(); // Place initial food items
+    gameLoop();
+  }
+});
+
+
+function checkCollisions() {
+  // Check for player 1 hitting its own tail
+  if (snake1.slice(1).some(segment => segment.x === snake1[0].x && segment.y === snake1[0].y)) {
+    dead1 = true;
+  }
+  // Check for player 2 hitting its own tail
+  if (snake2.slice(1).some(segment => segment.x === snake2[0].x && segment.y === snake2[0].y)) {
+    dead2 = true;
+  }
+
+  // Check wall collisions (more direct check)
+   if (snake1[0].x < 0 || snake1[0].x >= tileCountX || snake1[0].y < 0 || snake1[0].y >= tileCountY) {
+       dead1 = true;
+   }
+   if (snake2[0].x < 0 || snake2[0].x >= tileCountX || snake2[0].y < 0 || snake2[0].y >= tileCountY) {
+       dead2 = true;
+   }
+
+   // Check snake-on-snake collisions (optional: could make only one die)
+   if (snake2.some(segment => segment.x === snake1[0].x && segment.y === snake1[0].y)) {
+       dead1 = true; // P1 hit P2
+   }
+    if (snake1.some(segment => segment.x === snake2[0].x && segment.y === snake2[0].y)) {
+       dead2 = true; // P2 hit P1
+   }
+   // Optional: Head-on collision
+   if (snake1[0].x === snake2[0].x && snake1[0].y === snake2[0].y && snake1.length > 0 && snake2.length > 0) {
+       dead1 = true;
+       dead2 = true;
+   }
+}
+
+function update() {
+  if (paused || !gameStarted) return;
+
+  if (dead1 || dead2) {
+      gameStarted = false; // Stop the game loop on death
+      return;
+  }
+
+
+  let newHead1 = { x: snake1[0].x + direction1.x, y: snake1[0].y + direction1.y };
+  let newHead2 = { x: snake2[0].x + direction2.x, y: snake2[0].y + direction2.y };
+
+  // --- Border Handling (Wrap around instead of proximity stop) ---
+  /*
+  if (newHead1.x < 0) newHead1.x = tileCountX - 1;
+  if (newHead1.x >= tileCountX) newHead1.x = 0;
+  if (newHead1.y < 0) newHead1.y = tileCountY - 1;
+  if (newHead1.y >= tileCountY) newHead1.y = 0;
+
+  if (newHead2.x < 0) newHead2.x = tileCountX - 1;
+  if (newHead2.x >= tileCountX) newHead2.x = 0;
+  if (newHead2.y < 0) newHead2.y = tileCountY - 1;
+  if (newHead2.y >= tileCountY) newHead2.y = 0;
+  */
+  // --- End Border Wrap ---
+
+
+  // Add new head for both players
+  snake1.unshift(newHead1);
+  snake2.unshift(newHead2);
+
+
+  // --- Check Food Eating ---
+  // Iterate backwards to safely remove items while iterating
+  for (let i = foods.length - 1; i >= 0; i--) {
+      const currentFood = foods[i];
+      let eaten = false;
+
+      // Check if Player 1 ate this food
+      if (newHead1.x === currentFood.x && newHead1.y === currentFood.y) {
+          grow1 = true;
+          score1 += 10;
+          eaten = true;
+      }
+
+      // Check if Player 2 ate this food (can happen in the same frame)
+      // Important: check against newHead2, not currentFood which might have been eaten by P1
+      if (newHead2.x === currentFood.x && newHead2.y === currentFood.y) {
+          grow2 = true;
+          score2 += 10;
+          eaten = true; // Mark as eaten, even if P1 also ate it
+      }
+
+      // If this food was eaten by either player
+      if (eaten) {
+          foods.splice(i, 1); // Remove the eaten food from the array
+          placeNewFood();     // Add one new food item back
+          // Note: A snake only grows for one food item per tick even if it hits multiple
+          // We don't 'break' here in case P2 eats a *different* food item in the same tick
+      }
+  }
+
+
+  // Remove tail if not growing
+  if (!grow1) snake1.pop();
+  if (!grow2) snake2.pop();
+  grow1 = false; // Reset grow flag
+  grow2 = false; // Reset grow flag
+
+
+  // Check for collisions (tail, wall, snake-on-snake) *after* moving
+  checkCollisions();
+
+  // Win condition: Score limit
+  // Check this *after* potential collision deaths
+  if (!dead1 && !dead2) {
+      if (score1 >= 200) { // Reduced score for easier testing
+          gameStarted = false;
+      } else if (score2 >= 200) {
+          gameStarted = false;
+      }
+  }
+}
+
+function drawRoundedRect(x, y, w, h, radius = 6, color = "lime") {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + w - radius, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+  ctx.lineTo(x + w, y + h - radius);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+  ctx.lineTo(x + radius, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.fill();
+}
+
+function drawSnake() {
+  // Draw Player 1
+  snake1.forEach((s, i) => {
+      // Slightly different color for head
+      const color = (i === 0) ? "#90EE90" : "lime";
+      drawRoundedRect(s.x * gridSize, s.y * gridSize, gridSize - 2, gridSize - 2, 5, color); // Slightly smaller rect
+  });
+
+  // Draw Player 2
+  snake2.forEach((s, i) => {
+      // Slightly different color for head
+      const color = (i === 0) ? "#FF7F7F" : "red";
+       drawRoundedRect(s.x * gridSize, s.y * gridSize, gridSize - 2, gridSize - 2, 5, color); // Slightly smaller rect
+  });
+}
+
+function drawHUD() {
+  ctx.fillStyle = "white";
+  ctx.font = "18px monospace";
+  ctx.textAlign = "left";
+  ctx.fillText(`P1 Score: ${score1}`, 10, 25);
+  ctx.textAlign = "right";
+  ctx.fillText(`P2 Score: ${score2}`, canvas.width - 10, 25);
+  ctx.textAlign = "center"; // Reset alignment
+
+  if (paused) {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "white";
+      ctx.font = "36px monospace";
+      ctx.fillText("PAUSED", canvas.width / 2, canvas.height / 2);
+  }
+}
+
+// --- Draw Multiple Food Items ---
+function drawFoods() {
+  ctx.fillStyle = "yellow";
+  foods.forEach(f => {
+      ctx.beginPath();
+      // Draw simple squares for food
+      ctx.rect(f.x * gridSize + 2, f.y * gridSize + 2, gridSize - 4, gridSize - 4);
+      // Or use arcs like before:
+      // ctx.arc(f.x * gridSize + gridSize / 2, f.y * gridSize + gridSize / 2, gridSize / 2.5, 0, Math.PI * 2);
+      ctx.fill();
+  });
+}
+
+function drawBorders() {
+    // Only draw if not wrapping around
+    // Comment out the border wrap section in update() if you want borders
+   /*
+   ctx.strokeStyle = "grey"; // Less intrusive border color
+   ctx.lineWidth = 1;
+   ctx.strokeRect(0, 0, tileCountX * gridSize, tileCountY * gridSize); // Draw border exactly at grid edge
+   */
+}
+
+function draw() {
+  // Clear canvas
+  ctx.fillStyle = "#111";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (!gameStarted) {
+    // Draw start screen
+    ctx.fillStyle = "white";
+    ctx.font = "32px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("SNAKE EVOLUTION", canvas.width / 2, canvas.height * 0.3);
+    ctx.font = "20px monospace";
+     ctx.fillText("P1: Arrows | P2: WASD", canvas.width / 2, canvas.height * 0.5);
+
+    ctx.fillText("Press Enter to Start", canvas.width / 2, canvas.height * 0.7);
+    return; // Don't draw game elements
+  }
+
+  // Draw game elements
+  drawBorders(); // Draw borders if enabled
+  drawFoods();   // Draw all food items
+  drawSnake();   // Draw both snakes
+  drawHUD();     // Draw scores and pause message
+}
+
+function gameLoop() {
+  update();
+  draw();
+  // Only continue the loop if the game is supposed to be running
+  if (gameStarted) {
+    setTimeout(gameLoop, speed);
+  }
+}
+
+// --- Initial Setup ---
+// Don't start the loop immediately, wait for Enter key
+draw(); // Draw the initial start screen
+
+</script>
+</body>
+</html>
