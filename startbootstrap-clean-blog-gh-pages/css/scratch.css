@@ -1,0 +1,66 @@
+.tableauPlaceholder {
+    width:500px !important;
+ 
+    margin: 0 auto !important;
+  }
+
+.common{
+    text-align: center;
+    font-family: Georgia, 'Times New Roman', Times, serif;
+}
+
+.header{
+    background-color: #6d6b6b;
+    color: wheat;
+    height: 100px;
+    line-height: 100px;
+    font-size: xx-large;
+    font-weight: bold;
+}
+
+.footer{
+    position: fixed;
+    background-color: black;
+    color: white;
+    bottom: 5px;
+    left: 5px;
+    right: 5px;
+    height: 50px;
+    line-height: 50px;
+} 
+
+.mainbody{
+    background-color: whitesmoke;
+}
+
+nav{
+    background-color: lightgray;
+    padding: 10;
+    overflow: hidden;
+}
+
+nav a{
+    color: #333;
+    text-decoration: none;
+    padding: 20px;
+    font-weight: bold;
+}
+
+nav a:hover{
+    background-color: #ccc;
+}
+.centeredlist{
+    padding-left: 0;
+    width: 800px;
+    list-style-position: outside;
+    margin: 0 auto;
+    display: table;
+    text-align: left;
+}
+img{
+    display: block;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+
+}
